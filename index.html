@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Caribbean Tents & Pirate Ships</title>
+    <style>
+        body { margin:0; padding:0; background:#001f2d; font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif; color:#fff; display:flex; flex-direction:column; align-items:center; justify-content:flex-start; min-height:100vh; overflow-x:hidden; }
+        header { margin:15px 0 5px 0; text-align:center; }
+        h1 { font-size:1.4rem; margin:0; color:#ffd700; text-shadow:2px 2px #000; }
+        p { font-size:0.85rem; margin:5px 15px; color:#a0e0ff; text-align:center; }
+        .controls { margin:10px 0; display:flex; gap:10px; }
+        button { background:#d4af37; border:none; color:#1a1a1a; padding:10px 18px; font-weight:bold; border-radius:6px; cursor:pointer; box-shadow:0 4px #8b6508; font-size:0.9rem; }
+        button:active { transform:translateY(2px); box-shadow:0 2px #8b6508; }
+        #game-container { position:relative; background:#001520; border:4px solid #8b5a2b; border-radius:12px; box-shadow:0 8px 20px rgba(0,0,0,0.8); overflow:hidden; margin-bottom:10px; }
+        canvas { display:block; touch-action:none; }
+        .modal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:100; justify-content:center; align-items:center; }
+        .modal-content { background:#003440; border:3px solid #d4af37; border-radius:10px; padding:20px; max-width:85%; width:320px; box-shadow:0 0 15px rgba(212,175,55,0.5); }
+        .modal-content h3 { margin-top:0; color:#ffd700; border-bottom:1px solid #d4af37; padding-bottom:5px; }
+        .modal-content ul { padding-left:20px; font-size:0.85rem; line-height:1.4; }
+        .close-btn { float:right; background:#e74c3c; color:white; border:none; font-weight:bold; padding:4px 8px; border-radius:4px; cursor:pointer; }
+        #win-banner { display:none; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); background:rgba(0,20,30,0.95); border:3px solid #ffd700; border-radius:12px; padding:20px 30px; text-align:center; z-index:10; box-shadow:0 0 25px #ffd700; }
+        #win-banner h2 { margin:0 0 10px 0; color:#2a9d8f; font-size:1.8rem; }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Caribbean Tents & Pirate Ships</h1>
+        <p>Match every palm island with an adjacent pirate ship!</p>
+    </header>
+    <div class="controls">
+        <button id="shuffle-btn">Shuffle / Reset</button>
+        <button id="how-to-btn">How to Play</button>
+    </div>
+    <div id="game-container">
+        <div id="win-banner">
+            <h2>You Won!</h2>
+            <p style="margin-bottom:15px;color:#a0e0ff;">All pirate ships anchored correctly!</p>
+            <button id="next-btn">Next Level</button>
+        </div>
+        <canvas id="boardCanvas"></canvas>
+    </div>
+    <div id="help-modal" class="modal">
+        <div class="modal-content">
+            <button class="close-btn" id="close-modal">&times;</button>
+            <h3>How to Play</h3>
+            <ul>
+                <li><strong>Goal:</strong> Assign exactly one pirate ship to every palm island.</li>
+                <li><strong>Placement:</strong> Ships must be placed directly adjacent (north, south, east, or west) to their assigned palm island.</li>
+                <li><strong>No Touching:</strong> Pirate ships can <em>never</em> touch each other—not even diagonally!</li>
+                <li><strong>Row/Column Numbers:</strong> The numbers outside the grid tell you how many ships belong in that row or column. Numbers turn <span style="color:#55ff55;">green</span> when full!</li>
+                <li><strong>Controls:</strong> Tap a water tile once to place a galleon, tap again for an 'X' (water mark), and tap a third time to clear it.</li>
+            </ul>
+        </div>
+    </div>
+<script>
+const GRID_SIZE=6;
+let solution=[], gridState=[], rowClues=[], colClues=[], waveTime=0, treeList=[], gameWon=false;
+const canvas=document.getElementById('boardCanvas');
+const ctx=canvas.getContext('2d');
+const winBanner=document.getElementById('win-banner');
+const boardPixelSize=Math.min(window.innerWidth-30,400);
+canvas.width=boardPixelSize; canvas.height=boardPixelSize;
+const margin=50; const cellSize=(boardPixelSize-margin*2)/GRID_SIZE;
+function generateLevelWithTrees(){
+ gameWon=false; winBanner.style.display='none';
+ solution=Array(GRID_SIZE).fill(0).map(()=>Array(GRID_SIZE).fill(0)); treeList=[];
+ let possible=[]; for(let r=0;r<GRID_SIZE;r++)for(let c=0;c<GRID_SIZE;c++)possible.push({r,c});
+ possible.sort(()=>Math.random()-0.5);
+ for(let pos of possible){ if(treeList.length>=6)break;
+  let neighbors=[{r:pos.r-1,c:pos.c},{r:pos.r+1,c:pos.c},{r:pos.r,c:pos.c-1},{r:pos.r,c:pos.c+1}].filter(n=>n.r>=0&&n.r<GRID_SIZE&&n.c>=0&&n.c<GRID_SIZE);
+  neighbors.sort(()=>Math.random()-0.5);
+  for(let nb of neighbors){ if(solution[nb.r][nb.c]===0&&!treeList.some(t=>t.r===nb.r&&t.c===nb.c)){
+   let safe=true; for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){let rr=nb.r+dr,cc=nb.c+dc;if(rr>=0&&rr<GRID_SIZE&&cc>=0&&cc<GRID_SIZE&&solution[rr][cc]===2)safe=false;}
+   if(safe){solution[nb.r][nb.c]=2;treeList.push(pos);break;}
+  }}
+ }
+ rowClues=Array(GRID_SIZE).fill(0); colClues=Array(GRID_SIZE).fill(0);
+ for(let r=0;r<GRID_SIZE;r++)for(let c=0;c<GRID_SIZE;c++)if(solution[r][c]===2){rowClues[r]++;colClues[c]++;}
+ gridState=Array(GRID_SIZE).fill(0).map(()=>Array(GRID_SIZE).fill(0));
+}
+function checkWinCondition(){
+ if(gameWon)return; let currentRows=Array(GRID_SIZE).fill(0),currentCols=Array(GRID_SIZE).fill(0),totalShipsPlaced=0;
+ for(let r=0;r<GRID_SIZE;r++)for(let c=0;c<GRID_SIZE;c++)if(gridState[r][c]===2){
+  currentRows[r]++;currentCols[c]++;totalShipsPlaced++;
+  for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){if(dr===0&&dc===0)continue;let nr=r+dr,nc=c+dc;if(nr>=0&&nr<GRID_SIZE&&nc>=0&&nc<GRID_SIZE&&gridState[nr][nc]===2)return;}
+ }
+ for(let i=0;i<GRID_SIZE;i++)if(currentRows[i]!==rowClues[i]||currentCols[i]!==colClues[i])return;
+ for(let tree of treeList){let hasShip=false;let neighbors=[{r:tree.r-1,c:tree.c},{r:tree.r+1,c:tree.c},{r:tree.r,c:tree.c-1},{r:tree.r,c:tree.c+1}];for(let n of neighbors)if(n.r>=0&&n.r<GRID_SIZE&&n.c>=0&&n.c<GRID_SIZE&&gridState[n.r][n.c]===2){hasShip=true;break;}if(!hasShip)return;}
+ if(totalShipsPlaced!==treeList.length)return; gameWon=true;winBanner.style.display='block';
+}
+function draw(){
+ ctx.clearRect(0,0,canvas.width,canvas.height);waveTime+=0.04;
+ let currentRows=Array(GRID_SIZE).fill(0),currentCols=Array(GRID_SIZE).fill(0);
+ for(let r=0;r<GRID_SIZE;r++)for(let c=0;c<GRID_SIZE;c++)if(gridState[r][c]===2){currentRows[r]++;currentCols[c]++;}
+ for(let r=0;r<GRID_SIZE;r++)for(let c=0;c<GRID_SIZE;c++){
+  let x=margin+c*cellSize,y=margin+r*cellSize;ctx.fillStyle=((r+c)%2===0)?'#006c8a':'#005870';ctx.fillRect(x,y,cellSize,cellSize);
+  ctx.fillStyle='rgba(255,255,255,0.05)';let waveOffset=Math.sin(waveTime+r+c)*4;ctx.fillRect(x,y+cellSize/2+waveOffset/2,cellSize,3);
+  ctx.strokeStyle='#002b3d';ctx.lineWidth=2;ctx.strokeRect(x,y,cellSize,cellSize);let cx=x+cellSize/2,cy=y+cellSize/2;
+  if(treeList.some(t=>t.r===r&&t.c===c))drawPalmIsland(cx,cy);else if(gridState[r][c]===2)drawMiniGalleon(cx,cy+waveOffset*0.5);else if(gridState[r][c]===1)drawWaterMark(cx,cy);
+ }
+ ctx.font='bold 16px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+ for(let c=0;c<GRID_SIZE;c++){let x=margin+c*cellSize+cellSize/2,y=margin/2;ctx.fillStyle=(currentCols[c]===colClues[c])?'#55ff55':'#ffd700';ctx.fillText(colClues[c],x,y);}
+ for(let r=0;r<GRID_SIZE;r++){let x=margin/2,y=margin+r*cellSize+cellSize/2;ctx.fillStyle=(currentRows[r]===rowClues[r])?'#55ff55':'#ffd700';ctx.fillText(rowClues[r],x,y);}
+ requestAnimationFrame(draw);
+}
+function drawPalmIsland(cx,cy){ctx.fillStyle='#e9c46a';ctx.beginPath();ctx.ellipse(cx,cy+4,cellSize*0.32,cellSize*0.2,0,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#b5838d';ctx.lineWidth=1.5;ctx.stroke();ctx.strokeStyle='#8d5b4c';ctx.lineWidth=3.5;ctx.beginPath();ctx.moveTo(cx,cy+4);ctx.quadraticCurveTo(cx+3,cy-6,cx+8,cy-14);ctx.stroke();ctx.fillStyle='#2a9d8f';for(let i=0;i<4;i++){ctx.beginPath();let angle=(i*Math.PI/2)-0.4;ctx.ellipse(cx+8+Math.cos(angle)*6,cy-14+Math.sin(angle)*4.5,6.5,3,angle,0,Math.PI*2);ctx.fill();}}
+function drawMiniGalleon(cx,cy){ctx.fillStyle='#3a1f0d';ctx.beginPath();ctx.moveTo(cx-cellSize*0.3,cy+cellSize*0.05);ctx.lineTo(cx+cellSize*0.3,cy+cellSize*0.05);ctx.lineTo(cx+cellSize*0.2,cy+cellSize*0.3);ctx.lineTo(cx-cellSize*0.2,cy+cellSize*0.3);ctx.closePath();ctx.fill();ctx.fillStyle='#5c2c16';ctx.fillRect(cx-cellSize*0.25,cy+cellSize*0.05,cellSize*0.5,3);ctx.strokeStyle='#1a0d05';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(cx-5,cy+0.1);ctx.lineTo(cx-5,cy-cellSize*0.32);ctx.moveTo(cx+6,cy+0.1);ctx.lineTo(cx+6,cy-cellSize*0.26);ctx.stroke();ctx.fillStyle='#f4f1de';ctx.beginPath();ctx.moveTo(cx-5,cy-cellSize*0.32);ctx.quadraticCurveTo(cx-12,cy-0.15,cx-3,cy-0.05);ctx.closePath();ctx.fill();ctx.beginPath();ctx.moveTo(cx+6,cy-cellSize*0.26);ctx.quadraticCurveTo(cx+13,cy-0.12,cx+4,cy-0.02);ctx.closePath();ctx.fill();}
+function drawWaterMark(cx,cy){ctx.strokeStyle='#88d498';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(cx-8,cy-8);ctx.lineTo(cx+8,cy+8);ctx.moveTo(cx+8,cy-8);ctx.lineTo(cx-8,cy+8);ctx.stroke();}
+canvas.addEventListener('pointerdown',e=>{if(gameWon)return;const rect=canvas.getBoundingClientRect();const x=e.clientX-rect.left,y=e.clientY-rect.top;const c=Math.floor((x-margin)/cellSize),r=Math.floor((y-margin)/cellSize);if(r>=0&&r<GRID_SIZE&&c>=0&&c<GRID_SIZE&&!treeList.some(t=>t.r===r&&t.c===c)){gridState[r][c]=(gridState[r][c]+1)%3;checkWinCondition();}});
+const helpModal=document.getElementById('help-modal');
+document.getElementById('how-to-btn').addEventListener('click',()=>helpModal.style.display='flex');
+document.getElementById('close-modal').addEventListener('click',()=>helpModal.style.display='none');
+window.addEventListener('click',e=>{if(e.target===helpModal)helpModal.style.display='none';});
+document.getElementById('shuffle-btn').addEventListener('click',generateLevelWithTrees);
+document.getElementById('next-btn').addEventListener('click',generateLevelWithTrees);
+generateLevelWithTrees();requestAnimationFrame(draw);
+</script>
+</body>
+</html>
