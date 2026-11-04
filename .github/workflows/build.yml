@@ -19,13 +19,14 @@ jobs:
         java-version: '17'
 
     - name: Grant execute permission for gradlew
-      run: chmod +x gradlew
+      run: chmod +x caribbean-pirate-android/gradlew
 
     - name: Build Debug APK
+      working-directory: caribbean-pirate-android
       run: ./gradlew assembleDebug
 
     - name: Upload APK Artifact
       uses: actions/upload-artifact@v4
       with:
         name: app-debug
-        path: app/build/outputs/apk/debug/app-debug.apk
+        path: caribbean-pirate-android/app/build/outputs/apk/debug/app-debug.apk
