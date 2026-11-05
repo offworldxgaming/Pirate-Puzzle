@@ -18,18 +18,73 @@ jobs:
         distribution: 'temurin'
         java-version: '17'
 
-    - name: Organize Project Structure
+    - name: Generate Complete Android Project Structure
       run: |
-        # Create standard Android directories
+        # Create standard directories
         mkdir -p app/src/main/java/com/example/caribbeantents
         mkdir -p app/src/main/res/values
         mkdir -p app/src/main/assets
 
-        # Move files into their correct locations if they are in the root
+        # Move your existing source files if present in root
         [ -f MainActivity.java ] && mv MainActivity.java app/src/main/java/com/example/caribbeantents/
         [ -f AndroidManifest.xml ] && mv AndroidManifest.xml app/src/main/
         [ -f styles.xml ] && mv styles.xml app/src/main/res/values/
         [ -f index.html ] && mv index.html app/src/main/assets/
+
+        # Create root settings.gradle if missing
+        if [ ! -f settings.gradle ]; then
+          echo "include ':app'" > settings.gradle
+        fi
+
+        # Create root build.gradle with proper Android plugin repositories
+        cat << 'EOF' > build.gradle
+        buildscript {
+            repositories {
+                google()
+                mavenCentral()
+            }
+            dependencies {
+                classpath 'com.android.tools.build:gradle:8.2.0'
+            }
+        }
+        allprojects {
+            repositories {
+                google()
+                mavenCentral()
+            }
+        }
+        task clean(type: Delete) {
+            delete rootProject.buildDir
+        }
+        EOF
+
+        # Create app/build.gradle if missing
+        if [ ! -f app/build.gradle ]; then
+          cat << 'EOF' > app/build.gradle
+          plugins {
+              id 'com.android.application'
+          }
+          android {
+              namespace 'com.example.caribbeantents'
+              compileSdk 34
+              defaultConfig {
+                  applicationId 'com.example.caribbeantents'
+                  minSdk 21
+                  targetSdk 34
+                  versionCode 1
+                  versionName "1.0"
+              }
+              buildTypes {
+                  release {
+                      minifyEnabled false
+                  }
+              }
+          }
+          dependencies {
+              implementation 'androidx.appcompat:appcompat:1.6.1'
+          }
+          EOF
+        fi
 
     - name: Generate Gradle Wrapper
       run: gradle wrapper --gradle-version 8.5
