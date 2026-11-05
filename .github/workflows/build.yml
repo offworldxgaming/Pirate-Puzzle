@@ -20,23 +20,19 @@ jobs:
 
     - name: Generate Complete Android Project Structure
       run: |
-        # Create standard directories
         mkdir -p app/src/main/java/com/example/caribbeantents
         mkdir -p app/src/main/res/values
         mkdir -p app/src/main/assets
 
-        # Move your existing source files if present in root
         [ -f MainActivity.java ] && mv MainActivity.java app/src/main/java/com/example/caribbeantents/
         [ -f AndroidManifest.xml ] && mv AndroidManifest.xml app/src/main/
         [ -f styles.xml ] && mv styles.xml app/src/main/res/values/
         [ -f index.html ] && mv index.html app/src/main/assets/
 
-        # Create root settings.gradle if missing
         if [ ! -f settings.gradle ]; then
           echo "include ':app'" > settings.gradle
         fi
 
-        # Create root build.gradle with proper Android plugin repositories
         cat << 'EOF' > build.gradle
         buildscript {
             repositories {
@@ -58,7 +54,6 @@ jobs:
         }
         EOF
 
-        # Create app/build.gradle if missing
         if [ ! -f app/build.gradle ]; then
           cat << 'EOF' > app/build.gradle
           plugins {
