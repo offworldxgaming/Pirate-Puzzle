@@ -18,6 +18,19 @@ jobs:
         distribution: 'temurin'
         java-version: '17'
 
+    - name: Organize Project Structure
+      run: |
+        # Create standard Android directories
+        mkdir -p app/src/main/java/com/example/caribbeantents
+        mkdir -p app/src/main/res/values
+        mkdir -p app/src/main/assets
+
+        # Move files into their correct locations if they are in the root
+        [ -f MainActivity.java ] && mv MainActivity.java app/src/main/java/com/example/caribbeantents/
+        [ -f AndroidManifest.xml ] && mv AndroidManifest.xml app/src/main/
+        [ -f styles.xml ] && mv styles.xml app/src/main/res/values/
+        [ -f index.html ] && mv index.html app/src/main/assets/
+
     - name: Generate Gradle Wrapper
       run: gradle wrapper --gradle-version 8.5
 
