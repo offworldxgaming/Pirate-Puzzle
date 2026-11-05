@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-24.04
 
     steps:
-    - name: Checkout the code
+    - name: Checkout Code
       uses: actions/checkout@v5
 
     - name: Set up JDK 17
@@ -18,80 +18,18 @@ jobs:
         distribution: 'temurin'
         java-version: '17'
 
-    - name: Generate Complete Android Project Structure
-      run: |
-        mkdir -p app/src/main/java/com/example/caribbeantents
-        mkdir -p app/src/main/res/values
-        mkdir -p app/src/main/assets
-
-        [ -f MainActivity.java ] && mv MainActivity.java app/src/main/java/com/example/caribbeantents/
-        [ -f AndroidManifest.xml ] && mv AndroidManifest.xml app/src/main/
-        [ -f styles.xml ] && mv styles.xml app/src/main/res/values/
-        [ -f index.html ] && mv index.html app/src/main/assets/
-
-        if [ ! -f settings.gradle ]; then
-          echo "include ':app'" > settings.gradle
-        fi
-
-        cat << 'EOF' > build.gradle
-        buildscript {
-            repositories {
-                google()
-                mavenCentral()
-            }
-            dependencies {
-                classpath 'com.android.tools.build:gradle:8.2.0'
-            }
-        }
-        allprojects {
-            repositories {
-                google()
-                mavenCentral()
-            }
-        }
-        task clean(type: Delete) {
-            delete rootProject.buildDir
-        }
-        EOF
-
-        if [ ! -f app/build.gradle ]; then
-          cat << 'EOF' > app/build.gradle
-          plugins {
-              id 'com.android.application'
-          }
-          android {
-              namespace 'com.example.caribbeantents'
-              compileSdk 34
-              defaultConfig {
-                  applicationId 'com.example.caribbeantents'
-                  minSdk 21
-                  targetSdk 34
-                  versionCode 1
-                  versionName "1.0"
-              }
-              buildTypes {
-                  release {
-                      minifyEnabled false
-                  }
-              }
-          }
-          dependencies {
-              implementation 'androidx.appcompat:appcompat:1.6.1'
-          }
-          EOF
-        fi
-
-    - name: Generate Gradle Wrapper
+    - name: Generate Wrapper
       run: gradle wrapper --gradle-version 8.5
 
-    - name: Grant execute permission for gradlew
+    - name: Make Gradle Executable
       run: chmod +x gradlew
 
-    - name: Build Debug APK
+    - name: Build APK
       run: ./gradlew assembleDebug
 
-    - name: Upload APK Artifact
+    - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
         name: app-debug
         path: app/build/outputs/apk/debug/app-debug.apk
+        
